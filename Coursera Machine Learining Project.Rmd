@@ -1,0 +1,43 @@
+---
+title: "Coursera Machine Learning Project"
+author: "Eli Miller"
+date: "December 16, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+###Reading Data and variables
+```{r, echo=FALSE, message=FALSE}
+training <- read.csv('pml-training.csv')
+testing <- read.csv('pml-testing.csv')
+library(caret)
+```
+After Data was read in, I subseted the `training` data to be every column except the ones with NA values.
+```{r}
+NAvalsTrn <- sapply(training, anyNA)
+NAvalstst <- sapply(testing, anyNA)
+NAvals <- (NAvalstst | NAvalsTrn)
+noNATraining <- subset(training, select = !NAvals)
+```
+###Creating Model
+Now I want to get ready to create the model. I made my `trainControl` object with cross validation. I decreased the number of folds to five as I had trouble with the large computation.
+```{r}
+tc <- trainControl(method = "cv", number = 5)
+```
+I used a random forest model on all of the non-NA values.
+```{r cashe = TRUE, message=FALSE}
+set.seed(123)
+model <- train(classe~., data = noNATraining, trControl = tc)
+```
+###Prediction
+With this model I can now predict on the testing set.
+```{r}
+model$finalModel
+testing <- subset(testing, select = !NAvals)
+preds <- predict(model,testing)
+preds
+```
+In the final model it looks like the in sample error rate was 0.03% with just a few incorrect predictions. Looking at the testing data, it looks there may be some problem with the way we selected the variables, we got all class A, imputation could possibly solve this.
