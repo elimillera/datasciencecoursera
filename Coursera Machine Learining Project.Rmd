@@ -11,26 +11,38 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ###Reading Data and variables
 ```{r, echo=FALSE, message=FALSE}
+download.file('https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv', 'pml-training.csv')
+download.file('https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv', 'pml-testing.csv')
 training <- read.csv('pml-training.csv')
 testing <- read.csv('pml-testing.csv')
 library(caret)
 ```
-After Data was read in, I subseted the `training` data to be every column except the ones with NA values.
+After Data was read in, I subseted the `training` data to be every column except the ones with NA values, I also omitted the first seven, as they weren't movements by the user. This algorithm attempts to create 'connections' similar to those in the human brain.
 ```{r}
 NAvalsTrn <- sapply(training, anyNA)
 NAvalstst <- sapply(testing, anyNA)
 NAvals <- (NAvalstst | NAvalsTrn)
 noNATraining <- subset(training, select = !NAvals)
+finalTrain <- subset(noNATraining, select = 8:60)
+```
+To speed up computations, I enabled parallel processing.
+```{r}
+library(parallel)
+library(doParallel)
+cluster <- makeCluster(detectCores() - 1)
+registerDoParallel(cluster)
 ```
 ###Creating Model
-Now I want to get ready to create the model. I made my `trainControl` object with cross validation. I decreased the number of folds to five as I had trouble with the large computation.
+Now I want to get ready to create the model. I made my `trainControl` object with bootstrapping with corrections. This should reduce over fitting somewhat.
 ```{r}
-tc <- trainControl(method = "cv", number = 5)
+tc <- trainControl( allowParallel = TRUE, method = 'boot632')
 ```
-I used a random forest model on all of the non-NA values.
+I used a neural network to create the model. I choose this because I thought it would do the best job of modeling the complex behavior.
 ```{r cashe = TRUE, message=FALSE}
 set.seed(123)
-model <- train(classe~., data = noNATraining, trControl = tc)
+model <- train(classe~., data = finalTrain, method = 'nnet', trainControl = tc)
+stopCluster(cluster)
+registerDoSEQ()
 ```
 ###Prediction
 With this model I can now predict on the testing set.
@@ -40,4 +52,5 @@ testing <- subset(testing, select = !NAvals)
 preds <- predict(model,testing)
 preds
 ```
-In the final model it looks like the in sample error rate was 0.03% with just a few incorrect predictions. Looking at the testing data, it looks there may be some problem with the way we selected the variables, we got all class A, imputation could possibly solve this.
+The model did okay, but It seems the out-of-sample error was rather high. Principal 
+Analysis could be a next step for this model to reduce this.
